@@ -1246,6 +1246,10 @@ func (vlog *valueLog) Read(vp valuePointer, s *y.Slice) ([]byte, func(), error) 
 	var h header
 	h.Decode(buf)
 	n := uint32(headerBufSize) + h.klen
+	if int(n) > len(buf) || int(n+h.vlen) > len(buf) {
+		return nil, cb, errors.Errorf("bounds out of range Error: value corrupted for vp: %+v", vp)
+	}
+
 	return buf[n : n+h.vlen], cb, nil
 }
 
