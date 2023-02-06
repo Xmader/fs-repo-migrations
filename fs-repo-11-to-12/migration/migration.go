@@ -6,7 +6,6 @@ package mg11
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -56,10 +55,10 @@ func (m *Migration) Reversible() bool {
 
 // Apply runs the migration and writes a log file that can be used by Revert.
 // Steps:
-// - Open a raw datastore using go-ipfs settings
-// - Simulate the migration and save a backup log
-// - Run the migration by storing all CIDv1 addressed logs as raw-multihash
-//   addressed.
+//   - Open a raw datastore using go-ipfs settings
+//   - Simulate the migration and save a backup log
+//   - Run the migration by storing all CIDv1 addressed logs as raw-multihash
+//     addressed.
 func (m *Migration) Apply(opts migrate.Options) error {
 	log.Verbose = opts.Verbose
 	log.Log("applying %s repo migration", m.Versions())
@@ -85,50 +84,50 @@ func (m *Migration) Apply(opts migrate.Options) error {
 
 	log.VLog("  - starting CIDv1 to raw multihash block migration")
 
-	f, err := createBackupFile(opts.Path, backupFile)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	buf := bufio.NewWriter(f)
+	// f, err := createBackupFile(opts.Path, backupFile)
+	// if err != nil {
+	// 	log.Error(err)
+	// 	return err
+	// }
+	// buf := bufio.NewWriter(f)
 
-	swapCh := make(chan Swap, 1000)
-	writingDone := make(chan struct{})
+	// swapCh := make(chan Swap, 1000)
+	// writingDone := make(chan struct{})
 
-	// Write the old CIDv1-key of every swapped item to the buffer.
-	go func() {
-		for sw := range swapCh {
-			// Only write the Old string (a CID). We can derive
-			// the multihash from it.
-			fmt.Fprint(buf, sw.Old.String(), "\n")
-		}
-		close(writingDone)
-	}()
+	// // Write the old CIDv1-key of every swapped item to the buffer.
+	// go func() {
+	// 	for sw := range swapCh {
+	// 		// Only write the Old string (a CID). We can derive
+	// 		// the multihash from it.
+	// 		fmt.Fprint(buf, sw.Old.String(), "\n")
+	// 	}
+	// 	close(writingDone)
+	// }()
 
-	// DRY RUN: A swapper for each migration prefix and write everything
-	// to the file.
-	//
-	// Reasoning: We do not want a broken or unwritten file if the
-	// migration blows up. If it does blow up half-way through, and we
-	// need to run it again, we will only append to this file. Having
-	// potential duplicate entries in the backup file will not break
-	// reverts.
-	for _, prefix := range migrationPrefixes {
-		log.VLog("  - Adding keys in prefix %s to backup file", prefix)
-		cidSwapper := CidSwapper{Prefix: prefix, Store: m.dstore, SwapCh: swapCh}
-		total, err := cidSwapper.Prepare() // DRY RUN
-		if err != nil {
-			close(swapCh)
-			log.Error(err)
-			return err
-		}
-		log.Log("%d CIDv1 keys added to backup file for %s", total, prefix)
-	}
-	close(swapCh)
-	// Wait for our writing to finish before doing the flushing.
-	<-writingDone
-	buf.Flush()
-	f.Close()
+	// // DRY RUN: A swapper for each migration prefix and write everything
+	// // to the file.
+	// //
+	// // Reasoning: We do not want a broken or unwritten file if the
+	// // migration blows up. If it does blow up half-way through, and we
+	// // need to run it again, we will only append to this file. Having
+	// // potential duplicate entries in the backup file will not break
+	// // reverts.
+	// for _, prefix := range migrationPrefixes {
+	// 	log.VLog("  - Adding keys in prefix %s to backup file", prefix)
+	// 	cidSwapper := CidSwapper{Prefix: prefix, Store: m.dstore, SwapCh: swapCh}
+	// 	total, err := cidSwapper.Prepare() // DRY RUN
+	// 	if err != nil {
+	// 		close(swapCh)
+	// 		log.Error(err)
+	// 		return err
+	// 	}
+	// 	log.Log("%d CIDv1 keys added to backup file for %s", total, prefix)
+	// }
+	// close(swapCh)
+	// // Wait for our writing to finish before doing the flushing.
+	// <-writingDone
+	// buf.Flush()
+	// f.Close()
 
 	err = m.scanAndSwap(filepath.Join(opts.Path, backupFile), false) // revert=false
 	if err != nil {
